@@ -1,0 +1,379 @@
+##Trabalho Voto
+#Instalando e carregando os pacotes
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("caret")
+library("caret")
+#install.packages("lattice")
+library("lattice")
+#install.packages("rpart")
+library("rpart")
+#install.packages("partykit")
+library("partykit")
+#install.packages("grid")
+library("grid")
+#install.packages("e1071", dep = TRUE)
+library("e1071")
+#install.packages("randomForest")
+library("randomForest")
+#install.packages("ipred")
+library(ipred)
+#install.packages("plyr")
+library(plyr)
+#install.packages("knitr")
+library(knitr)
+
+#Abrindo a base de dados
+setwd("/Seu/Diretorio/Aqui") #endereço do seu documento no computador, mas sem o nome dele, só até a pasta onde ele está 
+Eseb2014 <- readRDS(file = "Eseb2014.RDS")
+View(Eseb2014)
+#head(Eseb2014)
+
+
+#Variaveis
+###Variavel resposta: se voto não fosse obrigatório,
+#teria ido votar? - PC7
+
+table(Eseb2014$PC7)
+#levels(Eseb2014$PC7)
+class(Eseb2014$PC7)
+
+voto <- as.numeric(Eseb2014$PC7)
+table(voto)
+# 1: Sim, 2: Nao, 3: Talvez, 8: Nao sabe, 8: Nao respondeu                 
+
+voto[voto == 1] <- 0
+voto[voto == 2] <- 1
+voto[voto == 3 | voto == 8 | voto == 9] <- NA
+table(voto)
+voto <- factor(voto, levels=c(0,1),
+               labels=c("Votaria", "Nao votaria"))
+
+#table(voto)
+
+
+#########Variaveis Independentes########
+
+###Faz diferenca quem governa o Brasil? - Q7
+#table(Eseb2014$Q7)
+#class(Eseb2014$Q7)
+
+importancia_governante <- as.numeric(Eseb2014$Q7)
+table(importancia_governante)
+# 1: Não faz nenhuma diferenca quem governa,
+#2,3,4
+#5: Faz grande Diferença quem governa o Brasil
+#: 8, 9 : Nao Sabe, nao respondeu
+importancia_governante [importancia_governante == 1 |
+                          importancia_governante == 2] <- 1
+importancia_governante[importancia_governante == 3] <- 2
+importancia_governante [importancia_governante == 4 |
+                          importancia_governante == 5] <- 3
+
+importancia_governante [importancia_governante == 8 |
+                          importancia_governante == 9] <- NA
+importancia_governante <- factor(importancia_governante, levels =c(1,2,3),
+                                 labels=c("Nao faz diferenca", "Neutro", "Faz diferenca"))
+
+#table(importancia_governante)
+
+
+###Voto Influencia o que acontece no Brasil? - Q8
+#table(Eseb2014$Q8)
+
+eficacia <- as.numeric(Eseb2014$Q8)
+
+#table(eficacia)
+eficacia [eficacia == 1 | eficacia == 2] <- 1
+eficacia[eficacia == 3] <- 2
+eficacia[eficacia == 4 | eficacia == 5] <- 3
+eficacia[eficacia == 8 | eficacia == 9] <- NA
+#table(eficacia)
+eficacia <- factor(eficacia, levels =c(1,2,3),
+                                 labels=c("Nao influencia", "Neutro", "Influencia"))
+
+
+### Satisfeito com democracia - Q15
+#table(Eseb2014$Q15)
+
+satisfeito_democracia <- as.numeric (Eseb2014$Q15)
+table(satisfeito_democracia)
+satisfeito_democracia [satisfeito_democracia ==1 |
+                        satisfeito_democracia == 2] <- 1
+satisfeito_democracia[satisfeito_democracia==3] <- 2
+satisfeito_democracia [satisfeito_democracia == 4 |
+                         satisfeito_democracia == 5] <- 3
+satisfeito_democracia [satisfeito_democracia == 8 |
+                         satisfeito_democracia == 9] <- NA
+
+satisfeito_democracia <- factor(satisfeito_democracia, levels =c(1,2,3),
+                                labels=c("Satisfeito", "Neutro", "Nao satisfeito"))
+
+#table(satisfeito_democracia)
+#levels(satisfeito_democracia)
+
+### Existe algum partido que te represente - Q16
+
+#table(Eseb2014$Q16)
+
+afinidade_partido <- as.numeric(Eseb2014$Q16)
+table(afinidade_partido)
+afinidade_partido [afinidade_partido == 1] <- 1
+afinidade_partido [afinidade_partido == 2] <- 0
+afinidade_partido [afinidade_partido == 8 | afinidade_partido == 9] <- NA
+#1 se sim, 0 se nao
+afinidade_partido <- factor(afinidade_partido, levels = c(0, 1),
+                            labels = c("nao tem", "tem"))
+table(afinidade_partido)
+
+
+### Algum partido te contatou? - Q17
+#table(Eseb2014$Q17)
+contatado_partido <- as.numeric(Eseb2014$Q17) 
+contatado_partido[contatado_partido == 1] <- 1
+contatado_partido[contatado_partido == 2] <- 0
+contatado_partido[contatado_partido == 8| contatado_partido == 9] <- NA
+#table(contatado_partido)
+# 1 se sim, 0 se nao
+contatado_partido <- factor(contatado_partido, levels = c(0,1),
+                            labels=c("nao contatado", "contatado"))
+table(contatado_partido)
+
+
+### Pessoa proxima tentou convencer? - Q18
+#table(Eseb2014$Q18)
+convencimento_amigo <- as.numeric(Eseb2014$Q18)
+convencimento_amigo[convencimento_amigo == 1] <- 1
+convencimento_amigo[convencimento_amigo == 2] <- 0
+convencimento_amigo[convencimento_amigo == 8 |
+                      convencimento_amigo == 9] <- NA
+table(convencimento_amigo)
+# 1 se sim, 0 se nao
+convencimento_amigo<- factor(convencimento_amigo, levels = c(0,1),
+                             labels=c("nao tentou convencer", "tentou convencer"))
+
+
+###Filiado a partido politico? - D5_D9a
+#table(Eseb2014$D9A)
+filiado_partido <- as.numeric(Eseb2014$D9A)
+filiado_partido[filiado_partido == 1] <- 1
+filiado_partido[filiado_partido == 2] <- 0
+filiado_partido[filiado_partido == 8 | filiado_partido == 9] <- NA
+#1 se sim, 0 se nao
+filiado_partido <- factor(filiado_partido, levels = c(0,1),
+                          labels=c("nao filiado", "filiado"))
+
+#table(filiado_partido)
+### Interesse por politica - PC1
+#table(Eseb2014$PC1)
+interesse_politica <- as.numeric(Eseb2014$PC1)
+table(interesse_politica)
+interesse_politica[interesse_politica == 1 | interesse_politica == 2] <- 1
+interesse_politica[interesse_politica == 3 | interesse_politica == 4] <- 0
+interesse_politica[interesse_politica == 8 | interesse_politica == 9] <- NA
+table(interesse_politica)
+#1 interessado, 0 nao interessado
+interesse_politica <- factor(interesse_politica, levels = c(0,1),
+                             labels=c("nao interessado", "interessado"))
+table(interesse_politica)
+
+### Avaliacao governo Dilma -PC2
+#table(Eseb2014$PC2)
+avaliacao_govdilma <- as.numeric(Eseb2014$PC2)
+#table(avaliacao_govdilma)
+avaliacao_govdilma[avaliacao_govdilma == 1 | avaliacao_govdilma == 2] <- 1
+avaliacao_govdilma[avaliacao_govdilma == 3] <- 2
+avaliacao_govdilma[avaliacao_govdilma == 4 | avaliacao_govdilma == 5] <- 3
+avaliacao_govdilma[avaliacao_govdilma == 8 |
+                    avaliacao_govdilma == 9] <- NA
+table(avaliacao_govdilma)
+# 1 para positiva, 2 neutra, 3 ruim
+avaliacao_govdilma <- factor(avaliacao_govdilma, levels = c(1,2,3),
+                            labels=c("Positiva", "Neutra", "Negativa"))
+
+
+###Avaliacao das Instituicoes - PC3
+
+##PC3D - governo federal
+#table(Eseb2014$PC3D)
+
+aval_govfederal <- as.numeric(Eseb2014$PC3D)
+table(aval_govfederal)
+
+aval_govfederal[aval_govfederal == 8 | aval_govfederal == 9] <- NA
+
+table(aval_govfederal)
+# 1 positivo, 0 negativo
+#quanto maior, mais negativo
+
+##PC3G - partidos politicos
+#table(Eseb2014$PC3G)
+aval_partidos <- as.numeric(Eseb2014$PC3G)
+#table(aval_partidos)
+aval_partidos[aval_partidos == 8 | aval_partidos == 9] <- NA
+
+##PC3H - congresso nacional
+#table(Eseb2014$PC3H)
+aval_cn <- as.numeric(Eseb2014$PC3H)
+#table(aval_cn)
+aval_cn[aval_cn == 9 | aval_cn == 8] <- NA
+
+### Avaliacao instituicoes
+aval_instituicoes <- aval_govfederal + aval_partidos + aval_cn
+#table(aval_instituicoes)
+aval_instituicoes <- aval_instituicoes-3
+#table(aval_instituicoes)
+#quanto menor o valor, mais positiva a avaliação
+
+aval_instituicoes[aval_instituicoes == 0 | aval_instituicoes == 1 |
+                    aval_instituicoes == 2 | aval_instituicoes == 3] <- 1
+aval_instituicoes[aval_instituicoes == 4 | aval_instituicoes == 5 |
+                    aval_instituicoes == 6 | aval_instituicoes == 7] <- 2
+aval_instituicoes[aval_instituicoes == 8 | aval_instituicoes == 9 |
+                    aval_instituicoes == 10 | aval_instituicoes == 11] <- 3
+aval_instituicoes[aval_instituicoes == 12 | aval_instituicoes == 13 |
+                    aval_instituicoes == 14 | aval_instituicoes == 15] <- 4
+#table(aval_instituicoes)
+
+#1 o mais positivo, 4 o mais negativo
+aval_instituicoes <- factor(aval_instituicoes, levels=c(1,2,3,4),
+                            labels=c("Muito Bom", "Bom", "Ruim", "Muito Ruim"))
+
+
+######Variaveis independentes basicas######
+#Renda - D20_REND_DOMICILIO
+#table(Eseb2014$D20_REND_DOMICILIO)
+renda <- (Eseb2014$D20_REND_DOMICILIO)
+#class(renda)
+renda[renda == 9999998 | renda == 9999999] <-NA
+
+### Educacao/ Escolaridade - D3
+#table(Eseb2014$D3)
+escolaridade <- as.numeric(Eseb2014$D3)
+#analfabeto ate colegial completo
+escolaridade[escolaridade == 0 | escolaridade == 1 | 
+               escolaridade == 2 | escolaridade == 3 |
+               escolaridade == 4 | escolaridade == 5 |
+               escolaridade == 6] <- 0
+#faculdade incompleta ate pos
+escolaridade[escolaridade == 7 |escolaridade == 8 | 
+               escolaridade == 9] <- 1
+escolaridade<- factor(escolaridade, levels=c(0,1),
+                      labels=c("escolaridade baixa", "escolaridade alta"))
+
+### Sexo - D2 - categoria: Masculino, Feminino
+table(Eseb2014$D2_SEXO)
+sexo <- (Eseb2014$D2_SEXO)
+sexo <- factor(sexo, levels=c(1,2),
+               labels=c("Masculino", "Feminino"))
+#table(sexo)
+#class(sexo)
+#class(sexo)
+#1 para masculino, 2 para feminino
+
+###Idade - numerica
+table(Eseb2014$D1A)
+idade <- (Eseb2014$D1A)
+#class(idade)
+
+###Juntando todas as variaveis criadas em um novo data.frame
+dados <- data.frame(voto, importancia_governante, eficacia,
+                          satisfeito_democracia, afinidade_partido,
+                          contatado_partido, convencimento_amigo,
+                          filiado_partido, interesse_politica, avaliacao_govdilma,                            
+                          aval_instituicoes, renda, escolaridade, sexo, idade)
+#Omitindo NA
+dados <- na.omit(dados)
+#describe(dados)
+
+###Frequencia das duas classes da resposta
+
+grafico <- ggplot(aes(x=voto), data=dados) +
+  geom_bar(fill='black') +
+  ggtitle('Frequencia das Classes') +
+  xlab('Votaria se Voto nao fosse obrigatorio?') +
+  ylab('Frequencia')
+grafico
+####Divindo as amostras
+#training (70%) e testing (30%)
+
+smp_size <- floor(0.70*nrow(dados)) 
+set.seed(123)   #para poder ser replicável 
+train_ind<-sample(seq_len(nrow(dados)), size = smp_size)
+train <- dados[train_ind,]
+test <- dados[-train_ind,]
+
+#nrow(train)
+#nrow(test)
+
+###Arvore com rpart
+
+arvore_rpart <- rpart(voto ~ importancia_governante + eficacia +
+        satisfeito_democracia + afinidade_partido +
+        contatado_partido + convencimento_amigo +
+        filiado_partido + interesse_politica + avaliacao_govdilma +
+        aval_instituicoes + renda + escolaridade + sexo + idade, data=train, method="class")
+        
+
+print(arvore_rpart)
+plot(arvore_rpart)
+text(arvore_rpart, use.n = TRUE, all = TRUE, pretty=0)
+
+printcp(arvore_rpart)
+summary(arvore_rpart) 
+
+arvore_rpart_1 <- as.party(arvore_rpart)
+plot(arvore_rpart_1)
+
+#test set results
+rpartpred <- predict(arvore_rpart, test, type ="class")
+
+cm_tree <- confusionMatrix(rpartpred, test$voto)
+cm_tree
+
+###Arvore com random forest
+
+arvore_rf <- randomForest(voto ~ importancia_governante + eficacia +
+                          satisfeito_democracia + afinidade_partido +
+                          contatado_partido + convencimento_amigo +
+                        filiado_partido + interesse_politica + avaliacao_govdilma +
+                        aval_instituicoes + renda + escolaridade + sexo + idade, data=train, type="class")
+arvore_rf
+print(arvore_rf) 
+importance(arvore_rf) #importancia de cada preditor
+varImpPlot(arvore_rf,
+           sort = T,
+           main="Importancia das Variaveis",
+           n.var=14)
+randomforestpred <- predict(arvore_rf, newdata=test)
+
+cm_rf <- confusionMatrix(randomforestpred, test$voto)
+cm_rf
+#cm_rf$table
+#cm_rf$overall
+
+
+####Bagging 
+
+arvore_bag <- bagging(voto ~ importancia_governante + eficacia +
+               satisfeito_democracia + afinidade_partido +
+               contatado_partido + convencimento_amigo +
+               filiado_partido + interesse_politica + avaliacao_govdilma +
+               aval_instituicoes + renda + escolaridade + sexo + idade, data=train)
+arvore_bag               
+varImp(arvore_bag)
+baggingpred <- predict(arvore_bag, newdata=test)
+cm_bag <- confusionMatrix(baggingpred, test$voto)
+cm_bag
+#cm_bag$table
+#cm_bag$overall
+
+
+###Comparando as acurácias
+re <- data.frame(Tree=cm_tree$overall[1], 
+                 rf=cm_rf$overall[1], 
+                 bagging=cm_bag$overall[1])
+re
+#Melhor acurácia é do random forest
+
+
